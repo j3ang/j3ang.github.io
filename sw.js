@@ -1,39 +1,114 @@
-importScripts('/_nuxt/workbox.4c4f5ca6.js')
+const options = {"workboxURL":"https://cdn.jsdelivr.net/npm/workbox-cdn@5.1.4/workbox/workbox-sw.js","importScripts":[],"config":{"debug":false},"cacheOptions":{"cacheId":"wuxt-prod","directoryIndex":"/","revision":"2YmVoCPwPxib"},"clientsClaim":true,"skipWaiting":true,"cleanupOutdatedCaches":true,"offlineAnalytics":false,"preCaching":[{"revision":"2YmVoCPwPxib","url":"/?standalone=true"}],"runtimeCaching":[{"urlPattern":"/_nuxt/","handler":"CacheFirst","method":"GET","strategyPlugins":[]},{"urlPattern":"/","handler":"NetworkFirst","method":"GET","strategyPlugins":[]}],"offlinePage":null,"pagesURLPattern":"/","offlineStrategy":"NetworkFirst"}
 
-workbox.precaching.precacheAndRoute([
-  {
-    "url": "/_nuxt/0b48d24a9e93e25941ea.js",
-    "revision": "dd9abb4a5cd2e2f5a0af6962b026cbe9"
-  },
-  {
-    "url": "/_nuxt/5acf0174cf65609e7f37.js",
-    "revision": "bfbc358727aec4d161c3fd0495f19600"
-  },
-  {
-    "url": "/_nuxt/a896217b2fd28443bca2.js",
-    "revision": "2946ee42ca6e983f8c4ae8fc74aea975"
-  },
-  {
-    "url": "/_nuxt/b99d9552cfad9e52b18f.js",
-    "revision": "f344d3b2f7f96d792e89abac74f34bd0"
-  },
-  {
-    "url": "/_nuxt/d5a27b3083590ca885e8.js",
-    "revision": "6444d48bf630c70c72b558bee367c124"
-  },
-  {
-    "url": "/_nuxt/ea54f017137322aa9c9e.js",
-    "revision": "22e168a8737b644fbe1bb8a64fce89ec"
+importScripts(...[options.workboxURL, ...options.importScripts])
+
+initWorkbox(workbox, options)
+workboxExtensions(workbox, options)
+precacheAssets(workbox, options)
+cachingExtensions(workbox, options)
+runtimeCaching(workbox, options)
+offlinePage(workbox, options)
+routingExtensions(workbox, options)
+
+function getProp(obj, prop) {
+  return prop.split('.').reduce((p, c) => p[c], obj)
+}
+
+function initWorkbox(workbox, options) {
+  if (options.config) {
+    // Set workbox config
+    workbox.setConfig(options.config)
   }
-], {
-  "cacheId": "wuxt",
-  "directoryIndex": "/",
-  "cleanUrls": false
-})
 
-workbox.clientsClaim()
-workbox.skipWaiting()
+  if (options.cacheNames) {
+    // Set workbox cache names
+    workbox.core.setCacheNameDetails(options.cacheNames)
+  }
 
-workbox.routing.registerRoute(new RegExp('/_nuxt/.*'), workbox.strategies.cacheFirst({}), 'GET')
+  if (options.clientsClaim) {
+    // Start controlling any existing clients as soon as it activates
+    workbox.core.clientsClaim()
+  }
 
-workbox.routing.registerRoute(new RegExp('/.*'), workbox.strategies.networkFirst({}), 'GET')
+  if (options.skipWaiting) {
+    workbox.core.skipWaiting()
+  }
+
+  if (options.cleanupOutdatedCaches) {
+    workbox.precaching.cleanupOutdatedCaches()
+  }
+
+  if (options.offlineAnalytics) {
+    // Enable offline Google Analytics tracking
+    workbox.googleAnalytics.initialize()
+  }
+}
+
+function precacheAssets(workbox, options) {
+  if (options.preCaching.length) {
+    workbox.precaching.precacheAndRoute(options.preCaching, options.cacheOptions)
+  }
+}
+
+
+function runtimeCaching(workbox, options) {
+  const requestInterceptor = {
+    requestWillFetch({ request }) {
+      if (request.cache === 'only-if-cached' && request.mode === 'no-cors') {
+        return new Request(request.url, { ...request, cache: 'default', mode: 'no-cors' })
+      }
+      return request
+    },
+    fetchDidFail(ctx) {
+      ctx.error.message =
+        '[workbox] Network request for ' + ctx.request.url + ' threw an error: ' + ctx.error.message
+      console.error(ctx.error, 'Details:', ctx)
+    },
+    handlerDidError(ctx) {
+      ctx.error.message =
+        `[workbox] Network handler threw an error: ` + ctx.error.message
+      console.error(ctx.error, 'Details:', ctx)
+      return null
+    }
+  }
+
+  for (const entry of options.runtimeCaching) {
+    const urlPattern = new RegExp(entry.urlPattern)
+    const method = entry.method || 'GET'
+
+    const plugins = (entry.strategyPlugins || [])
+      .map(p => new (getProp(workbox, p.use))(...p.config))
+
+    plugins.unshift(requestInterceptor)
+
+    const strategyOptions = { ...entry.strategyOptions, plugins }
+
+    const strategy = new workbox.strategies[entry.handler](strategyOptions)
+
+    workbox.routing.registerRoute(urlPattern, strategy, method)
+  }
+}
+
+function offlinePage(workbox, options) {
+  if (options.offlinePage) {
+    // Register router handler for offlinePage
+    workbox.routing.registerRoute(new RegExp(options.pagesURLPattern), ({ request, event }) => {
+      const strategy = new workbox.strategies[options.offlineStrategy]
+      return strategy
+        .handle({ request, event })
+        .catch(() => caches.match(options.offlinePage))
+    })
+  }
+}
+
+function workboxExtensions(workbox, options) {
+  
+}
+
+function cachingExtensions(workbox, options) {
+  
+}
+
+function routingExtensions(workbox, options) {
+  
+}

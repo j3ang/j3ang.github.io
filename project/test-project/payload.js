@@ -1,1 +1,0 @@
-window.__NUXT__=function(e){return{layout:"default",data:[],fetch:[],error:{statusCode:404,path:e,message:"This page could not be found"},serverRendered:!1,routePath:e,config:{content:{dbHash:"b25b294c"}}}}("/project/test-project/")
